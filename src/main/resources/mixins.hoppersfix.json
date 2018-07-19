@@ -1,0 +1,8 @@
+{
+  "package": "net.polyacovyury.hoppersfix",
+  "required": true,
+  "minVersion": "0.7",
+  "mixins": [
+    "MixinTileEntityHopper"
+  ]
+}
