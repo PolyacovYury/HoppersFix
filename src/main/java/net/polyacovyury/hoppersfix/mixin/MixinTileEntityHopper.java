@@ -1,4 +1,4 @@
-package net.polyacovyury.hoppersfix;
+package net.polyacovyury.hoppersfix.mixin;
 
 import com.google.common.collect.Lists;
 import net.minecraft.block.BlockHopper;
@@ -26,9 +26,8 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
     private static final String List = "Ljava/util/List;";
 
     // overwriting this, so that the same list gets iterated over just 2 times instead of 50
-    @Inject(method = "getCaptureItems(" + World + "DDD)" + List,
-            at = @At("HEAD"))
-    public static void getCaptureItems(
+    @Inject(method = "getCaptureItems(" + World + "DDD)" + List, at = @At("HEAD"), cancellable = true)
+    private static void getCaptureItems(
             World worldIn, double x, double y, double z, CallbackInfoReturnable<List<EntityItem>> info) {
         List<EntityItem> list = Lists.newArrayList();
         worldIn.getChunkFromBlockCoords(new BlockPos(x, y, z)).getEntitiesOfTypeWithinAABB(

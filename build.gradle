@@ -33,6 +33,7 @@ minecraft {
     version = "1.12.2-14.23.4.2705"
     runDir = "run"
     mappings = "snapshot_20170919"
+    makeObfSourceJar = false
 }
 repositories {
     maven {
@@ -64,7 +65,21 @@ processResources {
         exclude 'mcmod.info'
     }
 }
+
+sourceSets {
+    main {
+        refMap = "mixins.hoppersfix.refmap.json"
+    }
+}
+
 mixin {
     defaultObfuscationEnv notch
 }
 
+jar {
+    manifest.attributes(
+            'TweakClass': 'org.spongepowered.asm.launch.MixinTweaker',
+            'MixinConfigs': 'mixins.hoppersfix.json',
+            'FMLCorePluginContainsFMLMod': 'true',
+    )
+}

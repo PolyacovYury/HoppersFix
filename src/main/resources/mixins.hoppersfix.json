@@ -1,7 +1,9 @@
 {
-  "package": "net.polyacovyury.hoppersfix",
+  "package": "net.polyacovyury.hoppersfix.mixin",
+  "refmap": "mixins.hoppersfix.refmap.json",
   "required": true,
   "minVersion": "0.7",
+  "compatibilityLevel": "JAVA_8",
   "mixins": [
     "MixinTileEntityHopper"
   ]
