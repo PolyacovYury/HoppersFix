@@ -11,6 +11,7 @@ import net.minecraft.util.ITickable;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.polyacovyury.hoppersfix.HoppersFix;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -32,6 +33,7 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
         List<EntityItem> list = Lists.newArrayList();
         worldIn.getChunkFromBlockCoords(new BlockPos(x, y, z)).getEntitiesOfTypeWithinAABB(
                 EntityItem.class, new AxisAlignedBB(x, y, z, x, y + 1.5D, z), list, EntitySelectors.IS_ALIVE);
+        // HoppersFix.logger.info("entity lookup rewritten");
         info.setReturnValue(list);
     }
 
@@ -48,6 +50,7 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
             if (!this.isOnTransferCooldown() && BlockHopper.isEnabled(this.getBlockMetadata())) {
                 if (!result) {
                     this.setTransferCooldown(8);  // transfer cooldown gets reset even if nothing happened
+                    // HoppersFix.logger.info("transfer cooldown reset");
                 }
             }
         }
