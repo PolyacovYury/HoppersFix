@@ -36,13 +36,10 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
     }
 
     @Shadow
-    public void setTransferCooldown(int ticks) {
-    }
+    abstract void setTransferCooldown(int ticks);
 
     @Shadow
-    private boolean isOnTransferCooldown() {
-        return false;
-    }
+    abstract boolean isOnTransferCooldown();
 
     @Inject(method = "updateHopper()Z", at = @At("RETURN"), cancellable = true)
     protected void updateHopper(CallbackInfoReturnable<Boolean> info) {
