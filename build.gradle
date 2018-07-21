@@ -66,14 +66,8 @@ processResources {
     }
 }
 
-sourceSets {
-    main {
-        refMap = "mixins.hoppersfix.refmap.json"
-    }
-}
-
 mixin {
-    defaultObfuscationEnv notch
+    add sourceSets.main, "mixins.hoppersfix.refmap.json"
 }
 
 jar {
