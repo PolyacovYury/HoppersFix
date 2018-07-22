@@ -32,7 +32,7 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
             World worldIn, double x, double y, double z, CallbackInfoReturnable<List<EntityItem>> info) {
         List<EntityItem> list = Lists.newArrayList();
         worldIn.getChunkFromBlockCoords(new BlockPos(x, y, z)).getEntitiesOfTypeWithinAABB(
-                EntityItem.class, new AxisAlignedBB(x, y, z, x, y + 1.5D, z), list, EntitySelectors.IS_ALIVE);
+                EntityItem.class, new AxisAlignedBB(x - 0.5D, y, z - 0.5D, x + 0.5D, y + 1.5D, z + 0.5D), list, EntitySelectors.IS_ALIVE);
         // HoppersFix.logger.info("entity lookup rewritten");
         info.setReturnValue(list);
     }
