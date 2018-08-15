@@ -20,7 +20,7 @@ apply plugin: 'net.minecraftforge.gradle.forge'
 apply plugin: 'org.spongepowered.mixin'
 
 group = "net.polyacovyury.hoppersfix" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
-version = "1.0"
+version = "1.1"
 description = 'Hoppers Fix'
 archivesBaseName = "HoppersFix"
 
@@ -32,7 +32,7 @@ compileJava {
 minecraft {
     version = "1.12.2-14.23.4.2705"
     runDir = "run"
-    mappings = "snapshot_20171003"
+    mappings = "stable_39"
     makeObfSourceJar = false
 }
 repositories {
