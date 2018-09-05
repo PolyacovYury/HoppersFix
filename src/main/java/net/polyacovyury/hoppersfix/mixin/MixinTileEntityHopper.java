@@ -52,7 +52,8 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
         List<EntityItem> list = Lists.newArrayList();
         Chunk chunk = worldIn.getChunk(new BlockPos(x, y, z));
         TileEntity hopper = chunk.getTileEntity(new BlockPos(x, y, z), Chunk.EnumCreateEntityType.CHECK);
-        if (hopper instanceof MixinTileEntityHopper && !((MixinTileEntityHopper)hopper).isOnEntityLookupCooldown()) {
+        // whether this isn't a Hopper block (e.g. EntityMinecartHopper also calls this) or it isn't on cooldown
+        if (!(hopper instanceof MixinTileEntityHopper) || !((MixinTileEntityHopper)hopper).isOnEntityLookupCooldown()) {
             chunk.getEntitiesOfTypeWithinAABB(
                     EntityItem.class, new AxisAlignedBB(x - 0.5D, y, z - 0.5D, x + 0.5D, y + 1.5D, z + 0.5D), list,
                     EntitySelectors.IS_ALIVE);
@@ -62,9 +63,8 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
         info.setReturnValue(list);
     }
 
-    @Inject(method = "updateHopper()Z", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "updateHopper()Z", at = @At("RETURN"))
     private void updateHopper(CallbackInfoReturnable<Boolean> info) {
-        boolean result = info.getReturnValue();
         if (this.world != null && !this.world.isRemote) {
             if (!this.isOnTransferCooldown() && BlockHopper.isEnabled(this.getBlockMetadata())) {
                 if (!this.isOnEntityLookupCooldown()) {
