@@ -1,6 +1,7 @@
 package net.polyacovyury.hoppersfix.interfaces;
 
 import net.minecraft.entity.item.EntityItem;
+import net.minecraft.entity.item.EntityMinecartHopper;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
@@ -8,6 +9,7 @@ import net.minecraft.tileentity.IHopper;
 import net.minecraft.tileentity.TileEntityHopper;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.AxisAlignedBB;
+import net.polyacovyury.hoppersfix.HoppersFix;
 
 public interface IPaperHopper extends IHopper {
     static boolean acceptItem(IHopper hopper, IInventory iinventory) {
@@ -75,19 +77,36 @@ public interface IPaperHopper extends IHopper {
         ItemStack itemstack = inventoryIn.getStackInSlot(index);
 
         if (!itemstack.isEmpty() && canExtractItemFromSlot(inventoryIn, itemstack, index, direction)) {
-            ItemStack stack1 = itemstack.copy();
-            ItemStack stack2 = TileEntityHopper.putStackInInventoryAllSlots(inventoryIn, hopper, inventoryIn.decrStackSize(index, 1), null);
+            ItemStack origItemStack = inventoryIn.getStackInSlot(index);
+            final int origCount = origItemStack.getCount();
 
-            if (stack2.isEmpty()) {
+            final ItemStack itemstack2 = TileEntityHopper.putStackInInventoryAllSlots(inventoryIn, hopper, itemstack, null);
+            final int remaining = itemstack2.getCount();
+            if (remaining != origCount) {
+                origItemStack = origItemStack.copy();
+                origItemStack.setCount(remaining);
+                HoppersFix.IGNORE_TILE_UPDATES = true;
+                inventoryIn.setInventorySlotContents(index, origItemStack);
+                HoppersFix.IGNORE_TILE_UPDATES = false;
                 inventoryIn.markDirty();
                 return true;
             }
-
-            inventoryIn.setInventorySlotContents(index, stack1);
+            origItemStack.setCount(origCount);
+            cooldownHopper(hopper);
+            return false;
         }
 
         return false;
     }
+
+    static void cooldownHopper(IHopper hopper) {
+        if (hopper instanceof TileEntityHopper) {
+            ((TileEntityHopper) hopper).setTransferCooldown(8);
+        } else if (hopper instanceof EntityMinecartHopper) {
+            ((EntityMinecartHopper) hopper).setTransferTicker(4);
+        }
+    }
+
 
     static boolean canExtractItemFromSlot(IInventory inventoryIn, ItemStack stack, int index, EnumFacing side) {
         return !(inventoryIn instanceof ISidedInventory) || ((ISidedInventory) inventoryIn).canExtractItem(index, stack, side);
