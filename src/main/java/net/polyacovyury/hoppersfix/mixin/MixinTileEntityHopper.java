@@ -1,48 +1,79 @@
 package net.polyacovyury.hoppersfix.mixin;
 
 import com.google.common.collect.Lists;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockChest;
 import net.minecraft.block.BlockHopper;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityItem;
-import net.minecraft.tileentity.IHopper;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityHopper;
-import net.minecraft.tileentity.TileEntityLockableLoot;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.tileentity.*;
 import net.minecraft.util.EntitySelectors;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ITickable;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
-import net.minecraft.world.chunk.Chunk;
-import net.polyacovyury.hoppersfix.HoppersFix;
+import net.polyacovyury.hoppersfix.interfaces.IPaperHopper;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
 @Mixin(TileEntityHopper.class)
-public abstract class MixinTileEntityHopper extends TileEntityLockableLoot implements IHopper, ITickable {
+public abstract class MixinTileEntityHopper extends TileEntityLockableLoot implements IHopper, ITickable, IPaperHopper {
 
     private static final String World = "Lnet/minecraft/world/World;";
     private static final String List = "Ljava/util/List;";
+    private static final String IInventory = "Lnet/minecraft/inventory/IInventory;";
+    private static final String IHopper = "Lnet/minecraft/tileentity/IHopper;";
+    private static final String TEHopper = "Lnet/minecraft/tileentity/TileEntityHopper;";
     private int entityLookupCooldown = -1;
+    private boolean mayAcceptItems = false;
 
-    @Shadow
-    abstract boolean isOnTransferCooldown();
+    @Inject(method = "getSourceInventory(" + IHopper + ")" + IInventory, at = @At(value = "HEAD"), cancellable = true)
+    private static void getSourceInventory(IHopper hopper, CallbackInfoReturnable<IInventory> cir) {
+        cir.setReturnValue(getInventory(hopper, true));
+    }
 
-    public boolean isOnEntityLookupCooldown() {return this.entityLookupCooldown > 0;}
+    private static IInventory getInventory(IHopper ihopper, boolean searchForEntities) {
+        return getInventory(ihopper.getWorld(), ihopper.getXPos(), ihopper.getYPos() + 1.0D, ihopper.getZPos(), searchForEntities);
+    }
 
-    @Inject(method = "update()V", at = @At("HEAD"))
-    public void update(CallbackInfo info) {
-        if (this.world != null && !this.world.isRemote) {
-            --this.entityLookupCooldown;
-            if (!this.isOnEntityLookupCooldown()) {
-                this.entityLookupCooldown = 0;
+    @Inject(method = "getInventoryAtPosition(" + World + "DDD)" + IInventory, at = @At(value = "HEAD"), cancellable = true)
+    private static void getInventoryAtPosition(World world, double d0, double d1, double d2, CallbackInfoReturnable<IInventory> info) {
+        info.setReturnValue(getInventory(world, d0, d1, d2, true));
+    }
+
+    private static IInventory getInventory(World worldIn, double x, double y, double z, boolean searchForEntities) {
+        IInventory iinventory = null;
+        int i = MathHelper.floor(x);
+        int j = MathHelper.floor(y);
+        int k = MathHelper.floor(z);
+        BlockPos blockpos = new BlockPos(i, j, k);
+        net.minecraft.block.state.IBlockState state = worldIn.getBlockState(blockpos);
+        Block block = state.getBlock();
+        if (block.hasTileEntity(state)) {
+            TileEntity tileentity = worldIn.getTileEntity(blockpos);
+            if (tileentity instanceof IInventory) {
+                iinventory = (IInventory) tileentity;
+                if (iinventory instanceof TileEntityChest && block instanceof BlockChest) {
+                    iinventory = ((BlockChest) block).getContainer(worldIn, blockpos, true);
+                }
             }
         }
+        if (iinventory == null && searchForEntities) {
+            List<Entity> list = worldIn.getEntitiesInAABBexcluding(null, new AxisAlignedBB(x - 0.5D, y - 0.5D, z - 0.5D, x + 0.5D, y + 0.5D, z + 0.5D), EntitySelectors.HAS_INVENTORY);
+            if (!list.isEmpty()) {
+                iinventory = (IInventory) list.get(worldIn.rand.nextInt(list.size()));
+            }
+        }
+        return iinventory;
     }
 
     // overwriting this, so that the same list gets iterated over just 2 times instead of 50
@@ -50,7 +81,7 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
     private static void getCaptureItems(
             World worldIn, double x, double y, double z, CallbackInfoReturnable<List<EntityItem>> info) {
         List<EntityItem> list = Lists.newArrayList();
-        Chunk chunk = worldIn.getChunk(new BlockPos(x, y, z));
+        /*Chunk chunk = worldIn.getChunk(new BlockPos(x, y, z));
         TileEntity hopper = chunk.getTileEntity(new BlockPos(x, y, z), Chunk.EnumCreateEntityType.CHECK);
         // whether this isn't a Hopper block (e.g. EntityMinecartHopper also calls this) or it isn't on cooldown
         if (!(hopper instanceof MixinTileEntityHopper) || !((MixinTileEntityHopper)hopper).isOnEntityLookupCooldown()) {
@@ -59,12 +90,54 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
                     EntitySelectors.IS_ALIVE);
             //HoppersFix.logger.info("entity lookup processed");
         }
-        //HoppersFix.logger.info("entity lookup rewritten");
+        //HoppersFix.logger.info("entity lookup rewritten");*/
         info.setReturnValue(list);
     }
 
-    @Inject(method = "updateHopper()Z", at = @At("RETURN"))
+    @Inject(method = "pullItems", at = @At(value = "HEAD"))
+    private static void pullItems(IHopper hopper, CallbackInfoReturnable<Boolean> cir) {
+        IInventory iinventory = getInventory(hopper, !(hopper instanceof TileEntityHopper));
+        cir.setReturnValue(IPaperHopper.acceptItem(hopper, iinventory));
+    }
+
+    private boolean isOnEntityLookupCooldown() {
+        return this.entityLookupCooldown > 0;
+    }
+
+    public boolean canAcceptItems() {
+        return mayAcceptItems;
+    }
+
+    @Inject(method = "update()V", at = @At("HEAD"))
+    private void update(CallbackInfo info) {
+        if (this.world != null && !this.world.isRemote) {
+            --this.entityLookupCooldown;
+            if (!this.isOnEntityLookupCooldown()) {
+                this.entityLookupCooldown = 0;
+            }
+        }
+    }
+
+    @Inject(method = "getInventoryForHopperTransfer()" + IInventory, at = @At("HEAD"), cancellable = true)
+    private void getInventoryForHopperTransfer(CallbackInfoReturnable<IInventory> info) {
+        EnumFacing enumfacing = BlockHopper.getFacing(this.getBlockMetadata());
+        info.setReturnValue(getInventory(this.getWorld(), this.getXPos() + (double) enumfacing.getXOffset(), this.getYPos() + (double) enumfacing.getYOffset(), this.getZPos() + (double) enumfacing.getZOffset(), true));
+    }
+
+    @Redirect(method = "updateHopper()Z",
+            at = @At(value = "INVOKE", target = TEHopper + "pullItems(" + IHopper + ")Z"))
+    private boolean redirectPullItems(IHopper hopper, CallbackInfoReturnable<Boolean> cir) {
+        mayAcceptItems = true;
+        return TileEntityHopper.pullItems(hopper);
+    }
+
+    /*@Shadow
+    protected abstract boolean isOnTransferCooldown();*/
+
+    @Inject(method = "updateHopper()Z", at = @At("HEAD"))
     private void updateHopper(CallbackInfoReturnable<Boolean> info) {
+        mayAcceptItems = false;
+    }/*
         if (this.world != null && !this.world.isRemote) {
             if (!this.isOnTransferCooldown() && BlockHopper.isEnabled(this.getBlockMetadata())) {
                 if (!this.isOnEntityLookupCooldown()) {
@@ -73,5 +146,5 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
                 }
             }
         }
-    }
+    }*/
 }
