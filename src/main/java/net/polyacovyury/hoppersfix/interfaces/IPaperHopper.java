@@ -38,7 +38,7 @@ public interface IPaperHopper extends IHopper {
                     }
                 }
             }
-        } else {
+        } else if (!(hopper instanceof TileEntityHopper)) {  // hoppers will not look for items, but minecarts will
             for (EntityItem entityitem : TileEntityHopper.getCaptureItems(hopper.getWorld(), hopper.getXPos(), hopper.getYPos(), hopper.getZPos())) {
                 if (TileEntityHopper.putDropInInventoryAllSlots(null, hopper, entityitem)) {
                     return true;
@@ -74,17 +74,19 @@ public interface IPaperHopper extends IHopper {
     }
 
     static boolean pullItemFromSlot(IHopper hopper, IInventory inventoryIn, int index, EnumFacing direction) {
-        ItemStack itemstack = inventoryIn.getStackInSlot(index);
+        ItemStack origItemStack = inventoryIn.getStackInSlot(index);
 
-        if (!itemstack.isEmpty() && canExtractItemFromSlot(inventoryIn, itemstack, index, direction)) {
-            ItemStack origItemStack = inventoryIn.getStackInSlot(index);
+        if (!origItemStack.isEmpty() && canExtractItemFromSlot(inventoryIn, origItemStack, index, direction)) {
+            ItemStack itemstack = origItemStack.copy();
             final int origCount = origItemStack.getCount();
+            final int moved = Math.min(1, origCount);
+            itemstack.setCount(moved);
 
             final ItemStack itemstack2 = TileEntityHopper.putStackInInventoryAllSlots(inventoryIn, hopper, itemstack, null);
             final int remaining = itemstack2.getCount();
-            if (remaining != origCount) {
+            if (remaining != moved) {
                 origItemStack = origItemStack.copy();
-                origItemStack.setCount(remaining);
+                origItemStack.setCount(origCount - moved + remaining);
                 HoppersFix.IGNORE_TILE_UPDATES = true;
                 inventoryIn.setInventorySlotContents(index, origItemStack);
                 HoppersFix.IGNORE_TILE_UPDATES = false;
@@ -93,18 +95,18 @@ public interface IPaperHopper extends IHopper {
             }
             origItemStack.setCount(origCount);
             cooldownHopper(hopper);
-            return false;
         }
-
         return false;
     }
 
-    static void cooldownHopper(IHopper hopper) {
+    @SuppressWarnings("SameReturnValue")
+    static boolean cooldownHopper(IHopper hopper) {
         if (hopper instanceof TileEntityHopper) {
             ((TileEntityHopper) hopper).setTransferCooldown(8);
         } else if (hopper instanceof EntityMinecartHopper) {
             ((EntityMinecartHopper) hopper).setTransferTicker(4);
         }
+        return true;
     }
 
 
@@ -121,4 +123,6 @@ public interface IPaperHopper extends IHopper {
     }
 
     boolean canAcceptItems();
+
+    boolean isOnCooldown();
 }

@@ -1,12 +1,9 @@
 package net.polyacovyury.hoppersfix.mixin;
 
-import com.google.common.collect.Lists;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockChest;
 import net.minecraft.block.BlockHopper;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.item.EntityItem;
-import net.minecraft.entity.item.EntityMinecartHopper;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.*;
@@ -32,15 +29,12 @@ import java.util.List;
 @Mixin(TileEntityHopper.class)
 public abstract class MixinTileEntityHopper extends TileEntityLockableLoot implements IHopper, ITickable, IPaperHopper {
 
-    @Shadow public abstract void setTransferCooldown(int ticks);
-
     private static final String World = "Lnet/minecraft/world/World;";
-    private static final String List = "Ljava/util/List;";
+    //private static final String List = "Ljava/util/List;";
     private static final String IInventory = "Lnet/minecraft/inventory/IInventory;";
     private static final String IHopper = "Lnet/minecraft/tileentity/IHopper;";
     private static final String TEHopper = "Lnet/minecraft/tileentity/TileEntityHopper;";
-    private static final String EnumFacing = "Lnet/minecraft/util/EnumFacing;";
-    private int entityLookupCooldown = -1;
+    //private int entityLookupCooldown = -1;
     private boolean mayAcceptItems = false;
 
     @Inject(method = "getSourceInventory(" + IHopper + ")" + IInventory, at = @At(value = "HEAD"), cancellable = true)
@@ -83,64 +77,73 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
         return iinventory;
     }
 
-    // overwriting this, so that the same list gets iterated over just 2 times instead of 50
-    @Inject(method = "getCaptureItems(" + World + "DDD)" + List, at = @At("HEAD"), cancellable = true)
-    private static void getCaptureItems(
-            World worldIn, double x, double y, double z, CallbackInfoReturnable<List<EntityItem>> info) {
-        List<EntityItem> list = Lists.newArrayList();
-        /*Chunk chunk = worldIn.getChunk(new BlockPos(x, y, z));
-        TileEntity hopper = chunk.getTileEntity(new BlockPos(x, y, z), Chunk.EnumCreateEntityType.CHECK);
-        // whether this isn't a Hopper block (e.g. EntityMinecartHopper also calls this) or it isn't on cooldown
-        if (!(hopper instanceof MixinTileEntityHopper) || !((MixinTileEntityHopper)hopper).isOnEntityLookupCooldown()) {
-            chunk.getEntitiesOfTypeWithinAABB(
-                    EntityItem.class, new AxisAlignedBB(x - 0.5D, y, z - 0.5D, x + 0.5D, y + 1.5D, z + 0.5D), list,
-                    EntitySelectors.IS_ALIVE);
-            //HoppersFix.logger.info("entity lookup processed");
-        }
-        //HoppersFix.logger.info("entity lookup rewritten");*/
-        info.setReturnValue(list);
-    }
-
-    @Inject(method = "pullItems", at = @At(value = "HEAD"))
+    @Inject(method = "pullItems", at = @At(value = "HEAD"), cancellable = true)
     private static void pullItems(IHopper hopper, CallbackInfoReturnable<Boolean> cir) {
         IInventory iinventory = getInventory(hopper, !(hopper instanceof TileEntityHopper));
         cir.setReturnValue(IPaperHopper.acceptItem(hopper, iinventory));
     }
 
-    private boolean isOnEntityLookupCooldown() {
+    // tests indicate that this breaks picking up of the items by hopper minecarts on chunk borders.
+    /*private boolean isOnEntityLookupCooldown() {
         return this.entityLookupCooldown > 0;
     }
+    // overwriting this, so that the same list gets iterated over just 2 times instead of 50
+    @Inject(method = "getCaptureItems(" + World + "DDD)" + List, at = @At("HEAD"), cancellable = true)
+    private static void getCaptureItems(
+            World worldIn, double x, double y, double z, CallbackInfoReturnable<List<EntityItem>> info) {
+        List<EntityItem> list = Lists.newArrayList();
+        Chunk chunk = worldIn.getChunk(new BlockPos(x, y, z));
+        TileEntity hopper = chunk.getTileEntity(new BlockPos(x, y, z), Chunk.EnumCreateEntityType.CHECK);
+        // whether this isn't a Hopper block (e.g. EntityMinecartHopper also calls this)
+        if (!(hopper instanceof MixinTileEntityHopper)) {
+            chunk.getEntitiesOfTypeWithinAABB(
+                    EntityItem.class, new AxisAlignedBB(x - 0.5D, y, z - 0.5D, x + 0.5D, y + 1.5D, z + 0.5D), list,
+                    EntitySelectors.IS_ALIVE);
+            //HoppersFix.logger.info("entity lookup processed");
+        }
+        //HoppersFix.logger.info("entity lookup rewritten");
+        info.setReturnValue(list);
+    }*/
+
+    @Shadow
+    public abstract void setTransferCooldown(int ticks);
+
+    @Shadow
+    protected abstract boolean isOnTransferCooldown();
 
     public boolean canAcceptItems() {
         return mayAcceptItems;
+    }
+
+    @Override
+    public boolean isOnCooldown() {
+        return isOnTransferCooldown();
     }
 
     @Inject(method = "update()V", at = @At("HEAD"), cancellable = true)
     private void update(CallbackInfo info) {
         if (this.world != null && !this.world.isRemote) {
             if (HoppersFix.IGNORE_TILE_UPDATES) info.cancel();
-            --this.entityLookupCooldown;
+            /*--this.entityLookupCooldown;
             if (!this.isOnEntityLookupCooldown()) {
                 this.entityLookupCooldown = 0;
-            }
+            }*/
         }
     }
 
+    /* // this is not needed - the only place this gets called from was transferItemsOut() below.
     @Inject(method = "getInventoryForHopperTransfer()" + IInventory, at = @At("HEAD"), cancellable = true)
     private void getInventoryForHopperTransfer(CallbackInfoReturnable<IInventory> info) {
         EnumFacing enumfacing = BlockHopper.getFacing(this.getBlockMetadata());
-        info.setReturnValue(getInventory(this.getWorld(), this.getXPos() + (double) enumfacing.getXOffset(), this.getYPos() + (double) enumfacing.getYOffset(), this.getZPos() + (double) enumfacing.getZOffset(), true));
-    }
+        info.setReturnValue(getInventory(this.getWorld(), this.getXPos() + (double) enumfacing.getXOffset(), this.getYPos() + (double) enumfacing.getYOffset(), this.getZPos() + (double) enumfacing.getZOffset(), false));
+    }*/
 
     @Redirect(method = "updateHopper()Z",
             at = @At(value = "INVOKE", target = TEHopper + "pullItems(" + IHopper + ")Z"))
-    private boolean redirectPullItems(IHopper hopper, CallbackInfoReturnable<Boolean> cir) {
+    private boolean redirectPullItems(IHopper hopper) {
         mayAcceptItems = true;
         return TileEntityHopper.pullItems(hopper);
     }
-
-    /*@Shadow
-    protected abstract boolean isOnTransferCooldown();*/
 
     @Inject(method = "updateHopper()Z", at = @At("HEAD"))
     private void updateHopper(CallbackInfoReturnable<Boolean> info) {
@@ -162,12 +165,15 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
             if (!this.getStackInSlot(i).isEmpty()) {
                 foundItem = true;
                 ItemStack origItemStack = this.getStackInSlot(i);
+                ItemStack itemStack = origItemStack.copy();
                 final int origCount = origItemStack.getCount();
-                final ItemStack itemstack2 = TileEntityHopper.putStackInInventoryAllSlots(this, iinventory, this.decrStackSize(i, 1), enumfacing);
+                final int moved = Math.min(1, origCount);
+                itemStack.setCount(moved);
+                final ItemStack itemstack2 = TileEntityHopper.putStackInInventoryAllSlots(this, iinventory, itemStack, enumfacing);
                 final int remaining = itemstack2.getCount();
-                if (remaining != origCount) {
+                if (remaining != moved) {
                     origItemStack = origItemStack.copy();
-                    origItemStack.setCount(remaining);
+                    origItemStack.setCount(origCount - moved + remaining);
                     this.setInventorySlotContents(i, origItemStack);
                     iinventory.markDirty();
                     return true;
@@ -181,12 +187,15 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
         return false;
     }
 
-    @Inject(method = "transferItemsOut()Z", at=@At(value="INVOKE", target = TEHopper + "getSizeInventory()I"), cancellable = true)
+    @Inject(method = "transferItemsOut()Z", at = @At(value = "INVOKE", target = TEHopper + "getSizeInventory()I"), cancellable = true)
     private void transferItemsOut(CallbackInfoReturnable<Boolean> cir) {
         EnumFacing enumfacing = BlockHopper.getFacing(this.getBlockMetadata());
         cir.setReturnValue(hopperPush(
-            // exactly getInventoryForHopperTransfer()
-            getInventory(this.getWorld(), this.getXPos() + (double) enumfacing.getXOffset(), this.getYPos() + (double) enumfacing.getYOffset(), this.getZPos() + (double) enumfacing.getZOffset(), true),
-            enumfacing));
+                getInventory(this.getWorld(), // exactly getInventoryForHopperTransfer()
+                        this.getXPos() + (double) enumfacing.getXOffset(),
+                        this.getYPos() + (double) enumfacing.getYOffset(),
+                        this.getZPos() + (double) enumfacing.getZOffset(),
+                        true), // dilemma. Turn this off - hoppers ignore the chest minecarts in front. Leave this on..
+                enumfacing));
     }
 }
