@@ -77,24 +77,58 @@ public interface IPaperHopper extends IHopper {
         ItemStack origItemStack = inventoryIn.getStackInSlot(index);
 
         if (!origItemStack.isEmpty() && canExtractItemFromSlot(inventoryIn, origItemStack, index, direction)) {
-            ItemStack itemstack = origItemStack.copy();
-            final int origCount = origItemStack.getCount();
-            final int moved = Math.min(1, origCount);
-            itemstack.setCount(moved);
-
-            final ItemStack itemstack2 = TileEntityHopper.putStackInInventoryAllSlots(inventoryIn, hopper, itemstack, null);
-            final int remaining = itemstack2.getCount();
-            if (remaining != moved) {
-                origItemStack = origItemStack.copy();
-                origItemStack.setCount(origCount - moved + remaining);
-                HoppersFix.IGNORE_TILE_UPDATES = true;
-                inventoryIn.setInventorySlotContents(index, origItemStack);
-                HoppersFix.IGNORE_TILE_UPDATES = false;
-                inventoryIn.markDirty();
-                return true;
+            if (pushStack(inventoryIn, hopper, origItemStack, index, null, true)) {
+                return true;  // returning true results in a setCooldown call in native code
             }
-            origItemStack.setCount(origCount);
             cooldownHopper(hopper);
+        }
+        return false;
+    }
+
+    static boolean hopperPush(IHopper hopper, IInventory iinventory, EnumFacing enumfacing) {
+        boolean foundItem = false;
+        for (int i = 0; i < hopper.getSizeInventory(); ++i) {
+            if (!hopper.getStackInSlot(i).isEmpty()) {
+                foundItem = true;
+                if (pushStack(hopper, iinventory, hopper.getStackInSlot(i), i, enumfacing, false)) {
+                    return true;  // returning true results in a setCooldown call in native code
+                }
+            }
+        }
+        if (foundItem) { // Inventory was full - cooldown
+            cooldownHopper(hopper);
+        }
+        return false;
+    }
+
+    // this function is courtesy of Orhideous
+    static boolean pushStack(IInventory source, IInventory destination, ItemStack origItemStack, int index, EnumFacing direction, boolean pulling) {
+        final int pulledPerTick = 1;
+        final int origCount = origItemStack.getCount();
+
+        // Operate only with copied stack next
+        ItemStack itemStack = origItemStack.copy();
+        itemStack.setCount(pulledPerTick);
+
+        // Phase 1: try to insert single item from itemStack to hopper slot(s)
+        // This will mutate copied itemStack!
+        final ItemStack remainingItemStack = TileEntityHopper
+                .putStackInInventoryAllSlots(source, destination, itemStack, direction);
+
+        // this is false when there are no place for new item in hopper slot.
+        // Since original item stack isn't mutated, let it be "as is" in that case
+        if (remainingItemStack.getCount() == 0) {
+            // Grab one item original itemStack
+            origItemStack.setCount(origCount - pulledPerTick);
+            // Temporary ignore related updates
+            if (pulling) HoppersFix.IGNORE_TILE_UPDATES = true;
+            // Replace stack in inventory slot with mutated one
+            source.setInventorySlotContents(index, origItemStack);
+            // Turn on tile updates back
+            if (pulling) HoppersFix.IGNORE_TILE_UPDATES = false;
+            // Let minecraft clean up things
+            (pulling ? source : destination).markDirty();
+            return true;
         }
         return false;
     }
@@ -123,6 +157,4 @@ public interface IPaperHopper extends IHopper {
     }
 
     boolean canAcceptItems();
-
-    boolean isOnCooldown();
 }

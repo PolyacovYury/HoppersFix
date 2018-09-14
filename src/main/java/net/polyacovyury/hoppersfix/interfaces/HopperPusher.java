@@ -5,7 +5,6 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.chunk.Chunk;
-import net.polyacovyury.hoppersfix.interfaces.IPaperHopper;
 
 public interface HopperPusher {
 
@@ -44,6 +43,6 @@ public interface HopperPusher {
 
     default boolean tryPutInHopper() {
         IPaperHopper hopper = findHopper();
-        return hopper != null && hopper.canAcceptItems() && acceptItem(hopper) && IPaperHopper.cooldownHopper(hopper);
+        return hopper != null && hopper.canAcceptItems() && acceptItem(hopper);
     }
 }

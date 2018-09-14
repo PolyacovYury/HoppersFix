@@ -17,8 +17,8 @@ public abstract class MixinEntityMinecartContainer extends EntityMinecart implem
     }
 
     @Override
-    public boolean acceptItem(IPaperHopper hopper) {
-        return !(hopper.isOnCooldown()) && IPaperHopper.acceptItem(hopper, this);
+    public boolean acceptItem(IPaperHopper hopper) {  // needs explicit putting on halt after successful acceptItem()
+        return IPaperHopper.acceptItem(hopper, this) && IPaperHopper.cooldownHopper(hopper);
     }
 
     @Override

@@ -5,7 +5,6 @@ import net.minecraft.block.BlockChest;
 import net.minecraft.block.BlockHopper;
 import net.minecraft.entity.Entity;
 import net.minecraft.inventory.IInventory;
-import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.*;
 import net.minecraft.util.EntitySelectors;
 import net.minecraft.util.EnumFacing;
@@ -17,7 +16,6 @@ import net.minecraft.world.World;
 import net.polyacovyury.hoppersfix.HoppersFix;
 import net.polyacovyury.hoppersfix.interfaces.IPaperHopper;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -105,23 +103,13 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
         info.setReturnValue(list);
     }*/
 
-    @Shadow
-    public abstract void setTransferCooldown(int ticks);
-
-    @Shadow
-    protected abstract boolean isOnTransferCooldown();
-
     public boolean canAcceptItems() {
         return mayAcceptItems;
     }
 
-    @Override
-    public boolean isOnCooldown() {
-        return isOnTransferCooldown();
-    }
-
     @Inject(method = "update()V", at = @At("HEAD"), cancellable = true)
     private void update(CallbackInfo info) {
+        mayAcceptItems = false;
         if (this.world != null && !this.world.isRemote) {
             if (HoppersFix.IGNORE_TILE_UPDATES) info.cancel();
             /*--this.entityLookupCooldown;
@@ -145,10 +133,9 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
         return TileEntityHopper.pullItems(hopper);
     }
 
+    /*
     @Inject(method = "updateHopper()Z", at = @At("HEAD"))
     private void updateHopper(CallbackInfoReturnable<Boolean> info) {
-        mayAcceptItems = false;
-    }/*
         if (this.world != null && !this.world.isRemote) {
             if (!this.isOnTransferCooldown() && BlockHopper.isEnabled(this.getBlockMetadata())) {
                 if (!this.isOnEntityLookupCooldown()) {
@@ -159,38 +146,11 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
         }
     }*/
 
-    private boolean hopperPush(IInventory iinventory, EnumFacing enumfacing) {
-        boolean foundItem = false;
-        for (int i = 0; i < this.getSizeInventory(); ++i) {
-            if (!this.getStackInSlot(i).isEmpty()) {
-                foundItem = true;
-                ItemStack origItemStack = this.getStackInSlot(i);
-                ItemStack itemStack = origItemStack.copy();
-                final int origCount = origItemStack.getCount();
-                final int moved = Math.min(1, origCount);
-                itemStack.setCount(moved);
-                final ItemStack itemstack2 = TileEntityHopper.putStackInInventoryAllSlots(this, iinventory, itemStack, enumfacing);
-                final int remaining = itemstack2.getCount();
-                if (remaining != moved) {
-                    origItemStack = origItemStack.copy();
-                    origItemStack.setCount(origCount - moved + remaining);
-                    this.setInventorySlotContents(i, origItemStack);
-                    iinventory.markDirty();
-                    return true;
-                }
-                origItemStack.setCount(origCount);
-            }
-        }
-        if (foundItem) { // Inventory was full - cooldown
-            this.setTransferCooldown(8);
-        }
-        return false;
-    }
-
     @Inject(method = "transferItemsOut()Z", at = @At(value = "INVOKE", target = TEHopper + "getSizeInventory()I"), cancellable = true)
     private void transferItemsOut(CallbackInfoReturnable<Boolean> cir) {
         EnumFacing enumfacing = BlockHopper.getFacing(this.getBlockMetadata());
-        cir.setReturnValue(hopperPush(
+        cir.setReturnValue(IPaperHopper.hopperPush(
+                this,
                 getInventory(this.getWorld(), // exactly getInventoryForHopperTransfer()
                         this.getXPos() + (double) enumfacing.getXOffset(),
                         this.getYPos() + (double) enumfacing.getYOffset(),
