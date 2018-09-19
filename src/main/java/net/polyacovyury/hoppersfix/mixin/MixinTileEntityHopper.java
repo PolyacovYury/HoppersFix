@@ -1,17 +1,12 @@
 package net.polyacovyury.hoppersfix.mixin;
 
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockChest;
 import net.minecraft.block.BlockHopper;
-import net.minecraft.entity.Entity;
 import net.minecraft.inventory.IInventory;
-import net.minecraft.tileentity.*;
-import net.minecraft.util.EntitySelectors;
+import net.minecraft.tileentity.IHopper;
+import net.minecraft.tileentity.TileEntityHopper;
+import net.minecraft.tileentity.TileEntityLockableLoot;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ITickable;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import net.polyacovyury.hoppersfix.HoppersFix;
 import net.polyacovyury.hoppersfix.interfaces.IPaperHopper;
@@ -21,8 +16,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import java.util.List;
 
 @Mixin(TileEntityHopper.class)
 public abstract class MixinTileEntityHopper extends TileEntityLockableLoot implements IHopper, ITickable, IPaperHopper {
@@ -41,41 +34,16 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
     }
 
     private static IInventory getInventory(IHopper ihopper, boolean searchForEntities) {
-        return getInventory(ihopper.getWorld(), ihopper.getXPos(), ihopper.getYPos() + 1.0D, ihopper.getZPos(), searchForEntities);
+        return IPaperHopper.getInventory(ihopper.getWorld(), ihopper.getXPos(), ihopper.getYPos() + 1.0D, ihopper.getZPos(), searchForEntities);
     }
 
     @Inject(method = "getInventoryAtPosition(" + World + "DDD)" + IInventory, at = @At(value = "HEAD"), cancellable = true)
     private static void getInventoryAtPosition(World world, double d0, double d1, double d2, CallbackInfoReturnable<IInventory> info) {
-        info.setReturnValue(getInventory(world, d0, d1, d2, true));
+        info.setReturnValue(IPaperHopper.getInventory(world, d0, d1, d2, true));
     }
 
-    private static IInventory getInventory(World worldIn, double x, double y, double z, boolean searchForEntities) {
-        IInventory iinventory = null;
-        int i = MathHelper.floor(x);
-        int j = MathHelper.floor(y);
-        int k = MathHelper.floor(z);
-        BlockPos blockpos = new BlockPos(i, j, k);
-        net.minecraft.block.state.IBlockState state = worldIn.getBlockState(blockpos);
-        Block block = state.getBlock();
-        if (block.hasTileEntity(state)) {
-            TileEntity tileentity = worldIn.getTileEntity(blockpos);
-            if (tileentity instanceof IInventory) {
-                iinventory = (IInventory) tileentity;
-                if (iinventory instanceof TileEntityChest && block instanceof BlockChest) {
-                    iinventory = ((BlockChest) block).getContainer(worldIn, blockpos, true);
-                }
-            }
-        }
-        if (iinventory == null && searchForEntities) {
-            List<Entity> list = worldIn.getEntitiesInAABBexcluding(null, new AxisAlignedBB(x - 0.5D, y - 0.5D, z - 0.5D, x + 0.5D, y + 0.5D, z + 0.5D), EntitySelectors.HAS_INVENTORY);
-            if (!list.isEmpty()) {
-                iinventory = (IInventory) list.get(worldIn.rand.nextInt(list.size()));
-            }
-        }
-        return iinventory;
-    }
-
-    @Inject(method = "pullItems", at = @At(value = "HEAD"), cancellable = true)
+    @Inject(method = "pullItems",
+            at = @At(value = "INVOKE", target = TEHopper + "getSourceInventory(" + IHopper + ")" + IInventory), cancellable = true)
     private static void pullItems(IHopper hopper, CallbackInfoReturnable<Boolean> cir) {
         IInventory iinventory = getInventory(hopper, !(hopper instanceof TileEntityHopper));
         cir.setReturnValue(IPaperHopper.acceptItem(hopper, iinventory));
@@ -151,7 +119,7 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
         EnumFacing enumfacing = BlockHopper.getFacing(this.getBlockMetadata());
         cir.setReturnValue(IPaperHopper.hopperPush(
                 this,
-                getInventory(this.getWorld(), // exactly getInventoryForHopperTransfer()
+                IPaperHopper.getInventory(this.getWorld(), // exactly getInventoryForHopperTransfer()
                         this.getXPos() + (double) enumfacing.getXOffset(),
                         this.getYPos() + (double) enumfacing.getYOffset(),
                         this.getZPos() + (double) enumfacing.getZOffset(),

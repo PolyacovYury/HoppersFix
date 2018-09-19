@@ -1,15 +1,26 @@
 package net.polyacovyury.hoppersfix.interfaces;
 
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockChest;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.item.EntityMinecartHopper;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.IHopper;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.tileentity.TileEntityChest;
 import net.minecraft.tileentity.TileEntityHopper;
+import net.minecraft.util.EntitySelectors;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 import net.polyacovyury.hoppersfix.HoppersFix;
+
+import java.util.List;
 
 public interface IPaperHopper extends IHopper {
     static boolean acceptItem(IHopper hopper, IInventory iinventory) {
@@ -143,6 +154,31 @@ public interface IPaperHopper extends IHopper {
         return true;
     }
 
+    static IInventory getInventory(World worldIn, double x, double y, double z, boolean searchForEntities) {
+        IInventory iinventory = null;
+        int i = MathHelper.floor(x);
+        int j = MathHelper.floor(y);
+        int k = MathHelper.floor(z);
+        BlockPos blockpos = new BlockPos(i, j, k);
+        net.minecraft.block.state.IBlockState state = worldIn.getBlockState(blockpos);
+        Block block = state.getBlock();
+        if (block.hasTileEntity(state)) {
+            TileEntity tileentity = worldIn.getTileEntity(blockpos);
+            if (tileentity instanceof IInventory) {
+                iinventory = (IInventory) tileentity;
+                if (iinventory instanceof TileEntityChest && block instanceof BlockChest) {
+                    iinventory = ((BlockChest) block).getContainer(worldIn, blockpos, true);
+                }
+            }
+        }
+        if (iinventory == null && searchForEntities) {
+            List<Entity> list = worldIn.getEntitiesInAABBexcluding(null, new AxisAlignedBB(x - 0.5D, y - 0.5D, z - 0.5D, x + 0.5D, y + 0.5D, z + 0.5D), EntitySelectors.HAS_INVENTORY);
+            if (!list.isEmpty()) {
+                iinventory = (IInventory) list.get(worldIn.rand.nextInt(list.size()));
+            }
+        }
+        return iinventory;
+    }
 
     static boolean canExtractItemFromSlot(IInventory inventoryIn, ItemStack stack, int index, EnumFacing side) {
         return !(inventoryIn instanceof ISidedInventory) || ((ISidedInventory) inventoryIn).canExtractItem(index, stack, side);
