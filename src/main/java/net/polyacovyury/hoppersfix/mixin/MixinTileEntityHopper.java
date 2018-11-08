@@ -114,7 +114,7 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
         }
     }*/
 
-    @Inject(method = "transferItemsOut()Z", at = @At(value = "INVOKE", target = TEHopper + "getSizeInventory()I"), cancellable = true)
+    @Inject(method = "transferItemsOut()Z", at = @At(value = "INVOKE", target = TEHopper + "getInventoryForHopperTransfer()" + IInventory), cancellable = true)
     private void transferItemsOut(CallbackInfoReturnable<Boolean> cir) {
         EnumFacing enumfacing = BlockHopper.getFacing(this.getBlockMetadata());
         cir.setReturnValue(IPaperHopper.hopperPush(
