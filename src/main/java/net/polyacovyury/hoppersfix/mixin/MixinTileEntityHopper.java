@@ -43,7 +43,7 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
     }
 
     @Inject(method = "pullItems",
-            at = @At(value = "INVOKE", target = TEHopper + "getSourceInventory(" + IHopper + ")" + IInventory), cancellable = true)
+            at = @At(value = "INVOKE", target = TEHopper + "getSourceInventory(" + IHopper + ")" + IInventory, shift = At.Shift.BEFORE), cancellable = true)
     private static void pullItems(IHopper hopper, CallbackInfoReturnable<Boolean> cir) {
         IInventory iinventory = getInventory(hopper, !(hopper instanceof TileEntityHopper));
         cir.setReturnValue(IPaperHopper.acceptItem(hopper, iinventory));
@@ -114,7 +114,7 @@ public abstract class MixinTileEntityHopper extends TileEntityLockableLoot imple
         }
     }*/
 
-    @Inject(method = "transferItemsOut()Z", at = @At(value = "INVOKE", target = TEHopper + "getInventoryForHopperTransfer()" + IInventory), cancellable = true)
+    @Inject(method = "transferItemsOut()Z", at = @At(value = "INVOKE", target = TEHopper + "getInventoryForHopperTransfer()" + IInventory, shift = At.Shift.BEFORE), cancellable = true)
     private void transferItemsOut(CallbackInfoReturnable<Boolean> cir) {
         EnumFacing enumfacing = BlockHopper.getFacing(this.getBlockMetadata());
         cir.setReturnValue(IPaperHopper.hopperPush(
