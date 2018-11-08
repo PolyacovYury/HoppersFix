@@ -97,6 +97,9 @@ public interface IPaperHopper extends IHopper {
     }
 
     static boolean hopperPush(IHopper hopper, IInventory iinventory, EnumFacing enumfacing) {
+        if (iinventory == null) {
+            return false;
+        }
         boolean foundItem = false;
         for (int i = 0; i < hopper.getSizeInventory(); ++i) {
             if (!hopper.getStackInSlot(i).isEmpty()) {
