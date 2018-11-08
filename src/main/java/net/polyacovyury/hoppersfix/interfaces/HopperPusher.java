@@ -7,8 +7,10 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.chunk.Chunk;
 
 public interface HopperPusher {
+    boolean acceptItem(IPaperHopper hopper);
 
-    default IPaperHopper findHopper() {
+    default boolean tryPutInHopper() {
+        boolean accepted = false;
         int posX = (int) Math.floor(((Entity) this).posX);  // Why'd I poke GC with BlockPos,
         int posY = (int) Math.floor(((Entity) this).posY);  // If I just can be more verbose?
         int posZ = (int) Math.floor(((Entity) this).posZ);  // and yes, this is what it does.
@@ -27,22 +29,16 @@ public interface HopperPusher {
                     TileEntity hopper = chunk.getTileEntity(adjacentPos, Chunk.EnumCreateEntityType.CHECK);
                     if (!(hopper instanceof IPaperHopper))
                         continue; // Avoid playing with the bounding boxes, if at all possible
-                    AxisAlignedBB hopperBoundingBox = ((IPaperHopper) hopper).getHopperLookupBoundingBox();
+                    IPaperHopper pHopper = (IPaperHopper) hopper;
+                    AxisAlignedBB hopperBoundingBox = pHopper.getHopperLookupBoundingBox();
                     AxisAlignedBB boundingBox = ((Entity) this).getEntityBoundingBox();
                     if (boundingBox.intersects(hopperBoundingBox)) {
-                        return (IPaperHopper) hopper;
+                        accepted |= pHopper.canAcceptItems() && acceptItem(pHopper);
                     }
                 }
             }
         }
         adjacentPos.release();
-        return null;
-    }
-
-    boolean acceptItem(IPaperHopper hopper);
-
-    default boolean tryPutInHopper() {
-        IPaperHopper hopper = findHopper();
-        return hopper != null && hopper.canAcceptItems() && acceptItem(hopper);
+        return accepted;
     }
 }
