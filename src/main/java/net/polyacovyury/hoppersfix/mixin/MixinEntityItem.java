@@ -20,7 +20,7 @@ public abstract class MixinEntityItem extends Entity implements HopperPusher {
 
     @Override
     public boolean acceptItem(IPaperHopper hopper) {
-        return TileEntityHopper.putDropInInventoryAllSlots(null, hopper, (EntityItem) (Object) this);
+        return !((EntityItem) (Object) this).isDead && TileEntityHopper.putDropInInventoryAllSlots(null, hopper, (EntityItem) (Object) this);
     }
 
     @Inject(method = "onUpdate()V",
